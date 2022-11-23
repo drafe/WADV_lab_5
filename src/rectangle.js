@@ -5,6 +5,11 @@ export default class Rectangle {
         this.w = w
         this.h = h
         this.speed = {x: 0, y: 0}
+        this.strike = 0
+    }
+
+    setColor(rgb) {
+        this.color = rgb
     }
 
     setSpeed(x, y){
