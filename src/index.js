@@ -1,4 +1,5 @@
 import Rectangle from "./rectangle";
+import Circle from "./circle";
 
 const canvas = document.getElementById("cnvs");
 // console.log(canvas.width)
@@ -18,45 +19,59 @@ function draw(tFrame) {
     // clear canvas
     context.clearRect(0, 0, canvas.width, canvas.height)
     // draw
-    // context.fillStyle = "rgb(0, 0, 200)"
-    gameState.rects.forEach((figure)=>{
+    gameState.objects.forEach((figure)=>{
         context.fillStyle = figure.color
-        context.fillRect(figure.x, figure.y, figure.w, figure.h)
+        if (figure.constructor === Rectangle) {
+            context.fillRect(figure.x, figure.y, figure.w, figure.h)
+        }
+        else if (figure.constructor === Circle){
+            context.beginPath()
+            context.arc(figure.x, figure.y, figure.r,  0, 2 * Math.PI)
+            context.fill()
+        }
     })
 }
 
+function circ_rect_intersect(f1,f2){
+    let circ, rect;
+    if (f1.constructor === Circle){
+          circ = f1; rect = f2; }
+    else{ circ = f2; rect = f1; }
+    return ( ( (circ.x-rect.x-rect.w/2)**2 + (circ.y-rect.y-rect.h/2)**2 ) <= (circ.r)**2 + (rect.w/2)**2 + (rect.h/2)**2 )
+}
+
 function update(tick) {
-    gameState.rects.forEach((figure)=>{
-        if (figure.x <= 0 || figure.right >= canvas.width) {
+    gameState.objects.forEach((figure)=>{
+        if (figure.left <= 0 || figure.right >= canvas.width) {
             figure.speed.x *= -1
-    }
-        if (figure.y <= 0 || figure.bottom >= canvas.height) {
+        }
+        if (figure.top <= 0 || figure.bottom >= canvas.height) {
             figure.speed.y *= -1
         }
         figure.x += figure.speed.x
         figure.y += figure.speed.y
     })
-    for (let i=0; i<gameState.rects.length-1; i++){
-        // console.log(i, gameState.rects[i])
-        for (let j=i+1; j<gameState.rects.length; j++){
-            // console.log(j, gameState.rects[j])
-            // console.log(gameState.rects[i].intersects(gameState.rects[j]))
-            if (gameState.rects[i].intersects(gameState.rects[j])){
-                const s = gameState.rects[i].speed
-                gameState.rects[i].speed = gameState.rects[j].speed
-                gameState.rects[j].speed = s
-                gameState.rects[i].strike += 1
-                gameState.rects[j].strike += 1
-                if (gameState.rects[i].strike === 3){
-                    gameState.rects.splice(i,1)
-                    i-=1
+    for (let i=0; i<gameState.objects.length-1; ++i){
+        let col = [];
+        for (let j=i+1; j<gameState.objects.length; ++j){
+            if ((gameState.objects[i].constructor === gameState.objects[j].constructor && gameState.objects[i].intersects(gameState.objects[j])) ||
+              (gameState.objects[i].constructor !== gameState.objects[j].constructor && circ_rect_intersect(gameState.objects[i], gameState.objects[j])))
+            {
+                const s = gameState.objects[i].speed
+                gameState.objects[i].speed = gameState.objects[j].speed
+                gameState.objects[j].speed = s
+                gameState.objects[i].strike()
+                gameState.objects[j].strike()
+                if (gameState.objects[j].striked === 3){
+                    col.push(j)
                 }
-                if (gameState.rects[j].strike === 3){
-                    gameState.rects.splice(j,1)
-                    j-=1
+                if (gameState.objects[i].striked === 3){
+                    col.unshift(i)
+                    break
                 }
             }
         }
+        col.reverse().forEach(i => { gameState.objects.splice(i,1) })
     }
 }
 
@@ -80,26 +95,40 @@ function stopGame(handle) {
 }
 
 function setup() {
+    const n = 100;
+
     canvas.width = window.innerWidth
     canvas.height = window.innerHeight
     gameState.lastTick = performance.now()
     gameState.lastRender = gameState.lastTick
     gameState.tickLength = 15 //ms
 
-    gameState.rects = []
-    const rectangle = new Rectangle(10,10, 30, 30)
-    rectangle.setSpeed(5, 5)
-    rectangle.setColor('rgb(0,120,120)')
-    gameState.rects.push(rectangle)
-    const rectangle2 = new Rectangle(600,10, 30, 30)
-    rectangle2.setSpeed(-10, 5)
-    rectangle2.setColor('rgb(0,200,0)')
-    gameState.rects.push(rectangle2)
-
-    const rectangle3 = new Rectangle(10,400, 30, 30)
-    rectangle3.setSpeed(5, -15)
-    rectangle3.setColor('rgb(200,0,0)')
-    gameState.rects.push(rectangle3)
+    gameState.objects = []
+    for (let i=0; i<n; i++) {
+        const [x,y,w,h,sx,sy] = [Math.round(Math.random()*(window.innerWidth-30)),
+            Math.round(Math.random()*(window.innerHeight-30)),
+            Math.round(15+Math.random()*20),
+            Math.round(15+Math.random()*20),
+            Math.round(-5+Math.random()*10),
+            Math.round(-5+Math.random()*10),
+        ]
+        const rectangle = new Rectangle(x,y,w,h)
+        rectangle.setSpeed(sx,sy)
+        rectangle.setColor(0,120,120)
+        gameState.objects.push(rectangle)
+    }
+    for (let i=0; i<n; i++) {
+        const [x,y,r,sx,sy] = [Math.round(Math.random()*(window.innerWidth-40)),
+            Math.round(Math.random()*(window.innerHeight-40)),
+            Math.round(15+Math.random()*20),
+            Math.round(-5+Math.random()*10),
+            Math.round(-5+Math.random()*10),
+        ]
+        const circle = new Circle(x,y,r)
+        circle.setSpeed(sx,sy)
+        circle.setColor(100,0,0)
+        gameState.objects.push(circle)
+    }
 }
 setup();
 run();
